@@ -81,7 +81,12 @@ if(BONSAI_BUILD_EXAMPLES)
   # list(APPEND ext_deps nlohmann_json::nlohmann_json)
 
   set(exe
+    examples/getting_started_tutorial.cpp
     examples/main.cpp
+    examples/utility_demo.cpp
+    examples/builder_utility_demo.cpp
+    examples/comprehensive_test.cpp
+    examples/pea_harvester_demo_fixed.cpp
   )
   # ----------------------------------------------
   set(exec_names)
@@ -110,4 +115,3 @@ if(BONSAI_BUILD_EXAMPLES)
     DESTINATION lib/${PROJECT_NAME}
   )
 endif()
-
