@@ -13,7 +13,11 @@ A lightweight, header-only C++20 behavior tree library designed for AI decision-
 
 ## 🚀 Quick Start
 
-**New to behavior trees?** Start with our interactive tutorial:
+**New to behavior trees?** Check out our comprehensive tutorial:
+
+📖 **[Complete Tutorial Guide](TUTORIAL.md)** - Step-by-step learning with examples
+
+Or run the interactive tutorial:
 
 ```bash
 # Build and run the comprehensive tutorial
