@@ -23,6 +23,7 @@ Welcome to the comprehensive Bonsai behavior tree tutorial! This guide will take
 6. [Decorators - Modify Behavior](#lesson-6-decorators---modify-behavior)
 7. [Real-World Example - AI Guard](#lesson-7-real-world-example---ai-guard)
 8. [Manual Node Creation](#lesson-8-manual-node-creation)
+9. [Comprehensive Examples - All Features](#lesson-9-comprehensive-examples---all-features)
 
 ---
 
@@ -522,36 +523,512 @@ utility_tree.tick(); // Should select sleeping
 
 ---
 
-## Tutorial Complete! 🎉
+## Lesson 9: Comprehensive Examples - All Features
 
-Congratulations! You've learned how to use behavior trees with Bonsai!
+This section contains extensive examples demonstrating every feature of the Bonsai library. These examples were moved from README.md to keep the README concise.
 
-### Key concepts covered:
-✓ Actions and Status values  
-✓ Blackboard for shared data  
-✓ Sequence nodes (do this, then that)  
-✓ Selector nodes (try this, or that)  
-✓ Parallel nodes (do multiple things)  
-✓ Decorators (modify behavior)  
-✓ Real-world AI examples  
-✓ Manual node creation and utility-based selection  
+### Advanced Node Types and Patterns
 
-### Next steps:
-• Check out the other examples in the `examples/` directory  
-• Read the full API documentation in `README.md`  
-• Start building your own behavior trees!  
+```cpp
+#include <bonsai/bonsai.hpp>
+#include <iostream>
+#include <vector>
+#include <chrono>
+#include <thread>
 
-### Running the Interactive Tutorial
+using namespace bonsai;
 
-You can run the complete interactive version of this tutorial:
-
-```bash
-# Build the examples
-cmake -DBONSAI_BUILD_EXAMPLES=ON . -B build
-cmake --build build
-
-# Run the interactive tutorial
-./build/getting_started_tutorial
+int main() {
+    std::cout << "Comprehensive Bonsai Behavior Tree Examples" << std::endl;
+    std::cout << "===========================================" << std::endl;
+    
+    // ========================================
+    // 1. BLACKBOARD USAGE - Shared data between nodes
+    // ========================================
+    
+    std::cout << "\n=== Blackboard Usage ===" << std::endl;
+    
+    auto blackboard_tree = Builder()
+        .sequence()
+            .action([](Blackboard& bb) -> Status {
+                bb.set("player_health", 75);
+                bb.set("enemy_count", 3);
+                bb.set("weapon_type", std::string("sword"));
+                std::cout << "Set player health: 75, enemies: 3, weapon: sword" << std::endl;
+                return Status::Success;
+            })
+            .action([](Blackboard& bb) -> Status {
+                auto health = bb.get<int>("player_health");
+                auto enemies = bb.get<int>("enemy_count");
+                auto weapon = bb.get<std::string>("weapon_type");
+                
+                std::cout << "Retrieved - Health: " << (health.has_value() ? health.value() : 0);
+                std::cout << ", Enemies: " << (enemies.has_value() ? enemies.value() : 0);
+                std::cout << ", Weapon: " << (weapon.has_value() ? weapon.value() : "none") << std::endl;
+                
+                return Status::Success;
+            })
+        .end()
+        .build();
+    
+    std::cout << "Executing blackboard example:" << std::endl;
+    Status bb_result = blackboard_tree.tick();
+    std::cout << "Blackboard result: " << (bb_result == Status::Success ? "SUCCESS" : "FAILURE") << std::endl;
+    
+    // ========================================
+    // 2. ADVANCED SEQUENCE PATTERNS
+    // ========================================
+    
+    std::cout << "\n=== Advanced Sequence Patterns ===" << std::endl;
+    
+    auto sequence_tree = Builder()
+        .sequence()
+            .action([](Blackboard& bb) -> Status {
+                std::cout << "Step 1: Check prerequisites" << std::endl;
+                return Status::Success;
+            })
+            .action([](Blackboard& bb) -> Status {
+                std::cout << "Step 2: Initialize resources" << std::endl;
+                return Status::Success;
+            })
+            .action([](Blackboard& bb) -> Status {
+                std::cout << "Step 3: Execute main task" << std::endl;
+                return Status::Success;
+            })
+            .action([](Blackboard& bb) -> Status {
+                std::cout << "Step 4: Cleanup" << std::endl;
+                return Status::Success;
+            })
+        .end()
+        .build();
+    
+    std::cout << "Executing sequence (all should succeed):" << std::endl;
+    Status seq_result = sequence_tree.tick();
+    std::cout << "Sequence result: " << (seq_result == Status::Success ? "SUCCESS" : "FAILURE") << std::endl;
+    
+    // ========================================
+    // 3. ADVANCED SELECTOR PATTERNS
+    // ========================================
+    
+    std::cout << "\n=== Advanced Selector Patterns ===" << std::endl;
+    
+    auto selector_tree = Builder()
+        .selector()
+            .action([](Blackboard& bb) -> Status {
+                std::cout << "Option 1: Check if we have melee weapon (fails)" << std::endl;
+                bb.set("has_melee_weapon", false);
+                auto has_weapon = bb.get<bool>("has_melee_weapon");
+                if (has_weapon.has_value() && has_weapon.value()) {
+                    std::cout << "Use melee attack!" << std::endl;
+                    return Status::Success;
+                }
+                return Status::Failure;
+            })
+            .action([](Blackboard& bb) -> Status {
+                std::cout << "Option 2: Check if we have ranged weapon" << std::endl;
+                // Simulate having ranged weapon
+                bb.set("has_ranged_weapon", true);
+                auto has_weapon = bb.get<bool>("has_ranged_weapon");
+                if (has_weapon.has_value() && has_weapon.value()) {
+                    std::cout << "Use ranged attack!" << std::endl;
+                    return Status::Success;
+                }
+                return Status::Failure;
+            })
+            .action([](Blackboard& bb) -> Status {
+                std::cout << "Option 3: Retreat (fallback option)" << std::endl;
+                return Status::Success; // Always succeeds as last resort
+            })
+        .end()
+        .build();
+    
+    std::cout << "Executing selector (should succeed on option 2):" << std::endl;
+    Status sel_result = selector_tree.tick();
+    std::cout << "Selector result: " << (sel_result == Status::Success ? "SUCCESS" : "FAILURE") << std::endl;
+    
+    // ========================================
+    // 4. PARALLEL NODES - Execute children simultaneously
+    // ========================================
+    
+    std::cout << "\n=== Parallel Nodes ===" << std::endl;
+    
+    // Parallel node that succeeds when 2 out of 3 children succeed
+    auto parallel_tree = Builder()
+        .parallel(2) // Success threshold = 2
+            .action([](Blackboard& bb) -> Status {
+                std::cout << "Parallel task 1: Scanning for enemies" << std::endl;
+                return Status::Success;
+            })
+            .action([](Blackboard& bb) -> Status {
+                std::cout << "Parallel task 2: Monitoring health" << std::endl;
+                return Status::Success;
+            })
+            .action([](Blackboard& bb) -> Status {
+                std::cout << "Parallel task 3: Communication (fails)" << std::endl;
+                return Status::Failure;
+            })
+        .end()
+        .build();
+    
+    std::cout << "Executing parallel (2/3 success threshold):" << std::endl;
+    Status par_result = parallel_tree.tick();
+    std::cout << "Parallel result: " << (par_result == Status::Success ? "SUCCESS" : "FAILURE") << std::endl;
+    
+    // ========================================
+    // 5. DECORATOR NODES - Modify child behavior
+    // ========================================
+    
+    std::cout << "\n=== Decorator Nodes ===" << std::endl;
+    
+    // Inverter - Flips success/failure
+    auto inverter_tree = Builder()
+        .inverter()
+            .action([](Blackboard& bb) -> Status {
+                std::cout << "Action that fails" << std::endl;
+                return Status::Failure; // Will be inverted to Success
+            })
+        .end()
+        .build();
+    
+    std::cout << "Executing inverter (failure becomes success):" << std::endl;
+    Status inv_result = inverter_tree.tick();
+    std::cout << "Inverter result: " << (inv_result == Status::Success ? "SUCCESS" : "FAILURE") << std::endl;
+    
+    // Succeeder - Always returns success
+    auto succeeder_tree = Builder()
+        .succeeder()
+            .action([](Blackboard& bb) -> Status {
+                std::cout << "Action that fails but succeeder overrides" << std::endl;
+                return Status::Failure; // Will become Success
+            })
+        .end()
+        .build();
+    
+    std::cout << "\nExecuting succeeder:" << std::endl;
+    Status succ_result = succeeder_tree.tick();
+    std::cout << "Succeeder result: " << (succ_result == Status::Success ? "SUCCESS" : "FAILURE") << std::endl;
+    
+    // Repeater - Executes child multiple times
+    int repeat_count = 0;
+    auto repeat_tree = Builder()
+        .repeat(3)
+            .action([&repeat_count](Blackboard& bb) -> Status {
+                repeat_count++;
+                std::cout << "Repeat execution #" << repeat_count << std::endl;
+                return Status::Success;
+            })
+        .end()
+        .build();
+    
+    std::cout << "\nExecuting repeater (3 times):" << std::endl;
+    Status rep_result = repeat_tree.tick();
+    std::cout << "Repeat result: " << (rep_result == Status::Success ? "SUCCESS" : "FAILURE") << std::endl;
+    
+    // ========================================
+    // 6. UTILITY-BASED SELECTION - AI Decision Making
+    // ========================================
+    
+    std::cout << "\n=== Utility-Based Selection ===" << std::endl;
+    
+    auto utility_tree = Builder()
+        .utilitySelector()
+            .action([](Blackboard& bb) -> Status {
+                // Calculate utility for attacking
+                auto health = bb.get<int>("player_health");
+                auto enemy_count = bb.get<int>("enemy_count");
+                
+                double utility = 0.0;
+                if (health.has_value() && enemy_count.has_value()) {
+                    // Higher utility when health is high and enemies are few
+                    utility = (health.value() / 100.0) * (1.0 / enemy_count.value());
+                }
+                
+                bb.set("utility_score", utility);
+                std::cout << "Attack option utility: " << utility << std::endl;
+                return Status::Success;
+            })
+            .action([](Blackboard& bb) -> Status {
+                // Calculate utility for defending
+                auto health = bb.get<int>("player_health");
+                auto enemy_count = bb.get<int>("enemy_count");
+                
+                double utility = 0.0;
+                if (health.has_value() && enemy_count.has_value()) {
+                    // Higher utility when health is low or enemies are many
+                    utility = (1.0 - health.value() / 100.0) + (enemy_count.value() / 10.0);
+                }
+                
+                bb.set("utility_score", utility);
+                std::cout << "Defend option utility: " << utility << std::endl;
+                return Status::Success;
+            })
+            .action([](Blackboard& bb) -> Status {
+                // Calculate utility for fleeing
+                auto health = bb.get<int>("player_health");
+                auto enemy_count = bb.get<int>("enemy_count");
+                
+                double utility = 0.0;
+                if (health.has_value() && enemy_count.has_value()) {
+                    // Higher utility when health is very low
+                    utility = (health.value() < 30) ? 0.9 : 0.1;
+                }
+                
+                bb.set("utility_score", utility);
+                std::cout << "Flee option utility: " << utility << std::endl;
+                return Status::Success;
+            })
+        .end()
+        .build();
+    
+    std::cout << "Executing utility selector:" << std::endl;
+    Status util_result = utility_tree.tick();
+    std::cout << "Utility selector result: " << (util_result == Status::Success ? "SUCCESS" : "FAILURE") << std::endl;
+    
+    // ========================================
+    // 7. WEIGHTED RANDOM SELECTION
+    // ========================================
+    
+    std::cout << "\n=== Weighted Random Selection ===" << std::endl;
+    
+    auto weighted_tree = Builder()
+        .weightedRandomSelector()
+            .action([](Blackboard& bb) -> Status {
+                bb.set("weight", 3.0); // High weight - more likely
+                std::cout << "Common action (weight: 3.0)" << std::endl;
+                return Status::Success;
+            })
+            .action([](Blackboard& bb) -> Status {
+                bb.set("weight", 1.0); // Medium weight
+                std::cout << "Uncommon action (weight: 1.0)" << std::endl;
+                return Status::Success;
+            })
+            .action([](Blackboard& bb) -> Status {
+                bb.set("weight", 0.5); // Low weight - less likely
+                std::cout << "Rare action (weight: 0.5)" << std::endl;
+                return Status::Success;
+            })
+        .end()
+        .build();
+    
+    std::cout << "Executing weighted random selector (3 times):" << std::endl;
+    for (int i = 0; i < 3; ++i) {
+        Status weight_result = weighted_tree.tick();
+        std::cout << "  Weighted result " << (i+1) << ": " << (weight_result == Status::Success ? "SUCCESS" : "FAILURE") << std::endl;
+    }
+    
+    // ========================================
+    // 8. COMPLEX NESTED TREES - Game AI Example
+    // ========================================
+    
+    std::cout << "\n=== Complex Nested Trees ===" << std::endl;
+    
+    // Realistic AI behavior tree for a game character
+    auto game_ai_tree = Builder()
+        .selector() // Try different strategies
+            // Strategy 1: Aggressive (when health is high)
+            .sequence()
+                .action([](Blackboard& bb) -> Status {
+                    auto health = bb.get<int>("player_health");
+                    if (health.has_value() && health.value() > 70) {
+                        std::cout << "Health is high, being aggressive" << std::endl;
+                        return Status::Success;
+                    }
+                    return Status::Failure;
+                })
+                .selector() // Choose attack type
+                    .sequence() // Melee attack
+                        .action([](Blackboard& bb) -> Status {
+                            std::cout << "Check if enemy is close" << std::endl;
+                            bb.set("enemy_distance", 2.0);
+                            auto distance = bb.get<double>("enemy_distance");
+                            return (distance.has_value() && distance.value() < 3.0) ? Status::Success : Status::Failure;
+                        })
+                        .action([](Blackboard& bb) -> Status {
+                            std::cout << "Executing melee attack!" << std::endl;
+                            return Status::Success;
+                        })
+                    .end()
+                    .sequence() // Ranged attack
+                        .action([](Blackboard& bb) -> Status {
+                            std::cout << "Check if we have ranged weapon" << std::endl;
+                            return Status::Success; // Assume we have it
+                        })
+                        .action([](Blackboard& bb) -> Status {
+                            std::cout << "Executing ranged attack!" << std::endl;
+                            return Status::Success;
+                        })
+                    .end()
+                .end()
+            .end()
+            
+            // Strategy 2: Defensive (when health is medium)
+            .sequence()
+                .action([](Blackboard& bb) -> Status {
+                    auto health = bb.get<int>("player_health");
+                    if (health.has_value() && health.value() >= 30 && health.value() <= 70) {
+                        std::cout << "Health is medium, being defensive" << std::endl;
+                        return Status::Success;
+                    }
+                    return Status::Failure;
+                })
+                .parallel(1) // Do defensive actions simultaneously
+                    .action([](Blackboard& bb) -> Status {
+                        std::cout << "Raising shield" << std::endl;
+                        return Status::Success;
+                    })
+                    .action([](Blackboard& bb) -> Status {
+                        std::cout << "Looking for cover" << std::endl;
+                        return Status::Success;
+                    })
+                .end()
+            .end()
+            
+            // Strategy 3: Retreat (when health is low)
+            .sequence()
+                .action([](Blackboard& bb) -> Status {
+                    auto health = bb.get<int>("player_health");
+                    if (health.has_value() && health.value() < 30) {
+                        std::cout << "Health is low, retreating!" << std::endl;
+                        return Status::Success;
+                    }
+                    return Status::Failure;
+                })
+                .action([](Blackboard& bb) -> Status {
+                    std::cout << "Finding escape route" << std::endl;
+                    return Status::Success;
+                })
+                .action([](Blackboard& bb) -> Status {
+                    std::cout << "Running away!" << std::endl;
+                    return Status::Success;
+                })
+            .end()
+        .end()
+        .build();
+    
+    // Test with different health values
+    std::vector<int> health_values = {90, 50, 20};
+    for (int health : health_values) {
+        std::cout << "\nTesting AI with health: " << health << std::endl;
+        game_ai_tree.blackboard().set("player_health", health);
+        Status ai_result = game_ai_tree.tick();
+        std::cout << "AI decision result: " << (ai_result == Status::Success ? "SUCCESS" : "FAILURE") << std::endl;
+    }
+    
+    // ========================================
+    // 9. ADVANCED PATTERNS AND STATE MACHINES
+    // ========================================
+    
+    std::cout << "\n=== Advanced Patterns ===" << std::endl;
+    
+    // State machine using selector + sequences
+    auto state_machine = Builder()
+        .selector()
+            // Idle state
+            .sequence()
+                .action([](Blackboard& bb) -> Status {
+                    auto state = bb.get<std::string>("current_state");
+                    if (!state.has_value() || state.value() == "idle") {
+                        bb.set("current_state", std::string("idle"));
+                        std::cout << "State: IDLE - Waiting for input" << std::endl;
+                        
+                        // Simulate input
+                        bb.set("input_received", true);
+                        return Status::Success;
+                    }
+                    return Status::Failure;
+                })
+                .action([](Blackboard& bb) -> Status {
+                    auto input = bb.get<bool>("input_received");
+                    if (input.has_value() && input.value()) {
+                        bb.set("current_state", std::string("processing"));
+                        return Status::Success;
+                    }
+                    return Status::Failure;
+                })
+            .end()
+            
+            // Processing state
+            .sequence()
+                .action([](Blackboard& bb) -> Status {
+                    auto state = bb.get<std::string>("current_state");
+                    if (state.has_value() && state.value() == "processing") {
+                        std::cout << "State: PROCESSING - Handling input" << std::endl;
+                        return Status::Success;
+                    }
+                    return Status::Failure;
+                })
+                .action([](Blackboard& bb) -> Status {
+                    // Simulate processing
+                    std::cout << "Processing complete" << std::endl;
+                    bb.set("current_state", std::string("idle"));
+                    bb.set("input_received", false);
+                    return Status::Success;
+                })
+            .end()
+        .end()
+        .build();
+    
+    std::cout << "Executing state machine:" << std::endl;
+    for (int i = 0; i < 3; ++i) {
+        std::cout << "Cycle " << (i+1) << ":" << std::endl;
+        Status sm_result = state_machine.tick();
+        std::cout << "State machine result: " << (sm_result == Status::Success ? "SUCCESS" : "FAILURE") << std::endl;
+    }
+    
+    std::cout << "\n=== Comprehensive Examples Complete ===" << std::endl;
+    std::cout << "This comprehensive example demonstrated:" << std::endl;
+    std::cout << "• Blackboard for shared data storage" << std::endl;
+    std::cout << "• Advanced sequence and selector patterns" << std::endl;
+    std::cout << "• Parallel execution" << std::endl;
+    std::cout << "• Decorator nodes (Inverter, Succeeder, Repeater)" << std::endl;
+    std::cout << "• Utility-based and weighted random selection" << std::endl;
+    std::cout << "• Complex nested tree structures" << std::endl;
+    std::cout << "• Real-world AI behavior patterns" << std::endl;
+    std::cout << "• State machine implementations" << std::endl;
+    
+    return 0;
+}
 ```
 
-Happy coding! 🌳
+### Performance Tips and Best Practices
+
+1. **Blackboard Usage**: Store only necessary data to minimize memory overhead
+2. **Tree Depth**: Keep trees reasonably shallow for better performance
+3. **Action Complexity**: Keep individual actions simple and focused
+4. **Memory Management**: Use smart pointers for complex data types
+5. **Threading**: The blackboard is thread-safe, but be careful with shared state
+
+### Common Patterns
+
+#### Guard Conditions
+```cpp
+auto tree = Builder()
+    .sequence()
+        .action([](Blackboard& bb) -> Status {
+            // Guard condition
+            auto health = bb.get<int>("health");
+            return (health.has_value() && health.value() > 0) ? Status::Success : Status::Failure;
+        })
+        .action([](Blackboard& bb) -> Status {
+            // Main action only executes if guard passes
+            std::cout << "Executing main action" << std::endl;
+            return Status::Success;
+        })
+    .end()
+    .build();
+```
+
+#### Retry Logic
+```cpp
+auto retry_tree = Builder()
+    .repeat(3) // Try up to 3 times
+        .action([](Blackboard& bb) -> Status {
+            // Action that might fail
+            auto success_chance = bb.get<double>("success_chance").value_or(0.5);
+            return (rand() < success_chance * RAND_MAX) ? Status::Success : Status::Failure;
+        })
+    .end()
+    .build();
+```
+
+This completes our comprehensive tutorial covering all aspects of the Bonsai behavior tree library!
