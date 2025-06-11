@@ -347,7 +347,7 @@ auto inverter_demo = Builder()
 Status inverted = inverter_demo.tick();
 std::cout << "Inverter result: " << (inverted == Status::Success ? "SUCCESS" : "FAILURE") << std::endl;
 
-// Repeater
+// Repeater - repeats successful actions
 std::cout << "🔁 Repeater Demo:" << std::endl;
 int repeat_counter = 0;
 auto repeat_demo = Builder()
@@ -355,12 +355,28 @@ auto repeat_demo = Builder()
         .action([&repeat_counter](Blackboard& bb) -> Status {
             repeat_counter++;
             std::cout << "Execution #" << repeat_counter << std::endl;
-            return Status::Failure; // Will be repeated
+            return Status::Success; // Will be repeated 3 times
         })
-    .end()
     .build();
 
 repeat_demo.tick();
+std::cout << "Total executions: " << repeat_counter << std::endl;
+
+// Retry - retries failed actions
+std::cout << "🔄 Retry Demo:" << std::endl;
+int retry_counter = 0;
+auto retry_demo = Builder()
+    .retry(3)
+        .action([&retry_counter](Blackboard& bb) -> Status {
+            retry_counter++;
+            std::cout << "Attempt #" << retry_counter << std::endl;
+            // Fail first 2 times, succeed on 3rd
+            return (retry_counter < 3) ? Status::Failure : Status::Success;
+        })
+    .build();
+
+Status retry_result = retry_demo.tick();
+std::cout << "Retry result: " << (retry_result == Status::Success ? "SUCCESS" : "FAILURE") << std::endl;
 
 // Succeeder - always returns success
 std::cout << "✅ Succeeder Demo:" << std::endl;
@@ -379,9 +395,65 @@ std::cout << "Succeeder result: " << (succ_result == Status::Success ? "SUCCESS"
 
 **Available Decorators:**
 - `inverter()`: Flips Success ↔ Failure (Running unchanged)
-- `repeater(n)`: Repeats child up to n times (-1 for infinite)
+- `repeat(n)`: Repeats successful actions up to n times (-1 for infinite)
+- `retry(n)`: Retries failed actions up to n times (-1 for infinite)
 - `succeeder()`: Always returns Success regardless of child result
 - `failer()`: Always returns Failure regardless of child result
+
+**Repeat vs Retry:**
+- **`repeat()`**: Use for looping behaviors like animations, patrols, or resource gathering
+- **`retry()`**: Use for unreliable operations that might fail but should be attempted again
+
+### Practical Examples
+
+```cpp
+// Example 1: Patrol behavior - repeat successful patrol route
+auto patrol_tree = Builder()
+    .repeat(5) // Patrol 5 times
+        .sequence()
+            .action([](Blackboard& bb) -> Status {
+                std::cout << "🚶 Moving to checkpoint A" << std::endl;
+                return Status::Success;
+            })
+            .action([](Blackboard& bb) -> Status {
+                std::cout << "🔍 Scanning area" << std::endl;
+                return Status::Success;
+            })
+            .action([](Blackboard& bb) -> Status {
+                std::cout << "🚶 Moving to checkpoint B" << std::endl;
+                return Status::Success;
+            })
+        .end()
+    .build();
+
+// Example 2: Network operation - retry failed connections
+auto network_tree = Builder()
+    .retry(3) // Try up to 3 times
+        .action([](Blackboard& bb) -> Status {
+            std::cout << "🌐 Attempting network connection..." << std::endl;
+            // Simulate 70% failure rate
+            if (rand() % 10 < 7) {
+                std::cout << "❌ Connection failed" << std::endl;
+                return Status::Failure;
+            }
+            std::cout << "✅ Connected successfully!" << std::endl;
+            return Status::Success;
+        })
+    .build();
+
+// Example 3: Animation loop - repeat indefinitely until interrupted
+auto animation_tree = Builder()
+    .repeat() // Infinite repeat
+        .action([](Blackboard& bb) -> Status {
+            auto should_stop = bb.get<bool>("stop_animation");
+            if (should_stop.value_or(false)) {
+                return Status::Failure; // Stop repeating
+            }
+            std::cout << "🎬 Playing animation frame" << std::endl;
+            return Status::Success; // Continue repeating
+        })
+    .build();
+```
 
 ---
 
@@ -980,7 +1052,7 @@ int main() {
     std::cout << "• Blackboard for shared data storage" << std::endl;
     std::cout << "• Advanced sequence and selector patterns" << std::endl;
     std::cout << "• Parallel execution" << std::endl;
-    std::cout << "• Decorator nodes (Inverter, Succeeder, Repeater)" << std::endl;
+    std::cout << "• Decorator nodes (Inverter, Succeeder, Repeat, Retry)" << std::endl;
     std::cout << "• Utility-based and weighted random selection" << std::endl;
     std::cout << "• Complex nested tree structures" << std::endl;
     std::cout << "• Real-world AI behavior patterns" << std::endl;

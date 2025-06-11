@@ -1,5 +1,6 @@
+<img align="right" width="26%" src="./misc/logo.png"> 
 
-# Bonsai - Behavior Tree Library
+# Bonsai
 
 A lightweight, header-only C++20 behavior tree library designed for AI decision-making systems.
 
